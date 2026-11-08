@@ -20,6 +20,8 @@ export type TreeRow = {
   lines?: number;
   meta?: string;
   note?: string;
+  /** Tokens shared verbatim with another file in this fixture. */
+  duplicate?: number;
 };
 
 export const tierMeta: Record<
@@ -159,6 +161,7 @@ export const treeRows: TreeRow[] = [
     tier: "always-on",
     tokens: 3086,
     lines: 285,
+    duplicate: 2389,
     note: "The canonical rule set, plus schema tables, a glossary and a runbook that only one task in fifty needs. 100% contained in CLAUDE.md.",
   },
   {
@@ -170,6 +173,7 @@ export const treeRows: TreeRow[] = [
     tier: "always-on",
     tokens: 3118,
     lines: 290,
+    duplicate: 2389,
     note: "A hand-maintained copy of AGENTS.md. Both files are injected, so the shared 2,389 tokens are paid for twice on every request.",
   },
   {

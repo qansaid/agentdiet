@@ -57,9 +57,24 @@ const visuals = [
 
 const verbs = ["DISCOVER", "ANALYZE", "OPTIMIZE", "ENFORCE"] as const;
 
+/** Warm the chunk on hover or focus so a tab click does not show the skeleton. */
+const loaders = [
+  () => import("@/components/repository-explorer"),
+  () => import("@/components/token-analytics"),
+  () => import("@/components/optimization-comparison"),
+  () => import("@/components/ci-pipeline"),
+];
+
 export function HowItWorks() {
   const [active, setActive] = useState(0);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const warmed = useRef<Set<number>>(new Set());
+
+  function prefetch(index: number) {
+    if (warmed.current.has(index)) return;
+    warmed.current.add(index);
+    void loaders[index]?.();
+  }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const last = steps.length - 1;
@@ -109,6 +124,8 @@ export function HowItWorks() {
                 aria-controls={`step-panel-${s.id}`}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActive(i)}
+                onPointerEnter={() => prefetch(i)}
+                onFocus={() => prefetch(i)}
                 className={`group relative flex min-w-[132px] shrink-0 items-baseline gap-2 px-3 py-3 text-left transition-colors sm:min-w-0 sm:flex-1 ${
                   selected ? "text-fg" : "text-muted hover:text-fg"
                 }`}

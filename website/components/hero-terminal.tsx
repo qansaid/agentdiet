@@ -24,6 +24,7 @@ const useIsoLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+const COMMAND = "agentdiet . --top 10";
 
 const WANTED = [
   "CLAUDE.md",
@@ -74,6 +75,7 @@ export function HeroTerminal() {
 
   // Server render is the finished report: without JavaScript (and before
   // hydration) the price is on screen, not an empty animation frame.
+  const [typed, setTyped] = useState(COMMAND.length);
   const [scanning, setScanning] = useState(false);
   const [visibleFiles, setVisibleFiles] = useState(files.length);
   const [estimating, setEstimating] = useState(true);
@@ -89,6 +91,7 @@ export function HeroTerminal() {
 
   const finish = useCallback(() => {
     clearTimers();
+    setTyped(COMMAND.length);
     setScanning(false);
     setEstimating(false);
     setVisibleFiles(files.length);
@@ -99,7 +102,8 @@ export function HeroTerminal() {
 
   const start = useCallback(() => {
     clearTimers();
-    setScanning(true);
+    setTyped(0);
+    setScanning(false);
     setVisibleFiles(0);
     setEstimating(false);
     setVisibleFindings(0);
@@ -110,7 +114,16 @@ export function HeroTerminal() {
       timers.current.push(window.setTimeout(fn, ms));
     };
 
-    const fileStart = 520;
+    // Type the command one character at a time before the scan starts.
+    const typeStart = 140;
+    const perChar = 36;
+    COMMAND.split("").forEach((_, i) => {
+      at(typeStart + i * perChar, () => setTyped(i + 1));
+    });
+    const typedAt = typeStart + COMMAND.length * perChar + 140;
+    at(typedAt, () => setScanning(true));
+
+    const fileStart = typedAt + 300;
     const stride = 145;
     files.forEach((_, i) => {
       at(fileStart + i * stride, () => setVisibleFiles(i + 1));
@@ -232,7 +245,7 @@ export function HeroTerminal() {
         <div className="flex items-start gap-2 whitespace-pre-wrap break-words">
           <span style={{ color: T.accent }}>$</span>
           <span style={{ color: T.fg }}>
-            agentdiet . --top 10
+            {COMMAND.slice(0, typed)}
             {done ? null : <span className="caret" />}
           </span>
         </div>
@@ -300,7 +313,16 @@ export function HeroTerminal() {
             className="mt-2 line-in border-t pt-1.5"
             style={{ borderColor: T.border, color: T.faint }}
           >
-            <span style={{ color: T.fg }}>TOTAL 6,770</span> always-on tokens
+            <span style={{ color: T.fg }}>
+              TOTAL{" "}
+              <Count
+                value={demo.before.tokens}
+                format={fmt}
+                duration={0.8}
+                className="tabular-nums"
+              />
+            </span>{" "}
+            always-on tokens
             {" · "}
             <span style={{ color: T.dim }}>3.39% of a 200,000-token window</span>
           </div>

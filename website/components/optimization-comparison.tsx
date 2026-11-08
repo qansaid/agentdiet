@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Play } from "lucide-react";
 import { demo } from "@/lib/demo";
 import { duplicateBlock } from "@/lib/journey";
 import { Bar, BarScale, Count } from "@/components/motion/primitives";
@@ -56,7 +56,7 @@ const viewCopy = {
   },
 };
 
-function DuplicateDiagram() {
+function DuplicateDiagram({ deduped }: { deduped: boolean }) {
   return (
     <div className="mt-6 border-t border-line pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -64,7 +64,12 @@ function DuplicateDiagram() {
           What happens to the duplicated block
         </h4>
         <span className="font-mono text-[9.5px] text-faint">
-          2,389 tokens · AGENTS.md ↔ CLAUDE.md
+          <Count
+            value={deduped ? 0 : duplicateBlock.tokens}
+            format={fmt}
+            duration={0.7}
+          />{" "}
+          duplicated tokens · AGENTS.md ↔ CLAUDE.md
         </span>
       </div>
 
@@ -101,7 +106,10 @@ function DuplicateDiagram() {
           <ArrowRight className="size-3.5 rotate-90 text-faint sm:rotate-0" />
         </div>
 
-        <figure className="overflow-hidden rounded border border-accent/25 bg-accent/[0.035]">
+        <figure
+          key={deduped ? "deduped" : "duplicated"}
+          className="detail-in overflow-hidden rounded border border-accent/25 bg-accent/[0.035]"
+        >
           <figcaption className="flex items-center justify-between border-b border-accent/20 px-3 py-1.5 font-mono text-[10px] text-faint">
             <span>after · one canonical</span>
             <span className="text-accent">paid once</span>
@@ -147,7 +155,30 @@ function DuplicateDiagram() {
  */
 export function OptimizationComparison() {
   const [view, setView] = useState<"before" | "after">("before");
+  const [playing, setPlaying] = useState(false);
+  const playTimer = useRef<number | null>(null);
   const current = viewCopy[view];
+
+  useEffect(
+    () => () => {
+      if (playTimer.current !== null) window.clearTimeout(playTimer.current);
+    },
+    [],
+  );
+
+  function playTransition() {
+    if (playing) return;
+    if (view === "before") {
+      setView("after");
+      return;
+    }
+    setPlaying(true);
+    setView("before");
+    playTimer.current = window.setTimeout(() => {
+      setView("after");
+      setPlaying(false);
+    }, 700);
+  }
 
   return (
     <BarScale className="overflow-hidden rounded-lg border border-line bg-surface">
@@ -160,11 +191,21 @@ export function OptimizationComparison() {
             simulated fixture
           </span>
         </div>
-        <div
-          role="group"
-          aria-label="Compare before and after optimization"
-          className="flex rounded border border-line bg-bg/50 p-0.5"
-        >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={playTransition}
+            disabled={playing}
+            className="inline-flex min-h-[26px] items-center gap-1 rounded border border-line px-2 font-mono text-[10px] text-muted transition-colors hover:border-line-strong hover:text-fg disabled:opacity-60"
+          >
+            <Play className="size-3" aria-hidden="true" />
+            play transition
+          </button>
+          <div
+            role="group"
+            aria-label="Compare before and after optimization"
+            className="flex rounded border border-line bg-bg/50 p-0.5"
+          >
           {(["before", "after"] as const).map((option) => {
             const active = view === option;
             return (
@@ -185,6 +226,7 @@ export function OptimizationComparison() {
               </button>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -333,7 +375,7 @@ export function OptimizationComparison() {
         </div>
       </div>
 
-      <DuplicateDiagram />
+      <DuplicateDiagram deduped={view === "after"} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-elevated/30 px-4 py-2 font-mono text-[9.5px] text-faint">
         <span>both columns measured on the same fixture, before and after</span>

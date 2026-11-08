@@ -32,6 +32,48 @@ const bandIndex = 2;
 const within = (total - 4000) / (8000 - 4000);
 const markerPct = ((bandIndex + Math.min(Math.max(within, 0), 1)) / gradeBands.length) * 100;
 
+function TierRow({
+  label,
+  value,
+  valueText,
+  note,
+  tone,
+  to,
+  muted = false,
+}: {
+  label: string;
+  value?: number;
+  valueText?: string;
+  note: string;
+  tone: string;
+  to: number;
+  muted?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          className={`font-mono text-[10px] ${muted ? "text-muted" : "text-fg"}`}
+        >
+          {label}
+        </span>
+        <span className="font-mono text-[10px] text-muted tabular-nums">
+          {typeof value === "number" ? (
+            <>
+              <Count value={value} format={fmt} duration={0.8} />
+              <span className="ml-1 text-faint">tokens</span>
+            </>
+          ) : (
+            <span className="text-faint">{valueText}</span>
+          )}
+        </span>
+      </div>
+      <Bar to={to} height={4} tone={tone} className="mt-1" />
+      <p className="mt-1 font-mono text-[9px] leading-snug text-faint">{note}</p>
+    </div>
+  );
+}
+
 function DuplicateBar({
   file,
   tokens,
@@ -122,6 +164,47 @@ export function TokenAnalytics() {
           <p className="mt-1 font-mono text-[10px] text-faint">
             per 1,000 sessions at $3.00/1M
           </p>
+        </div>
+      </div>
+
+      <div className="border-t border-line px-4 py-3.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h4 className="text-[12px] font-medium text-fg">Context by tier</h4>
+          <span className="font-mono text-[9.5px] text-faint">
+            only always-on is billed on every request
+          </span>
+        </div>
+        <div className="mt-3 grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+          <TierRow
+            label="always-on"
+            value={total}
+            note="injected before you type"
+            tone="var(--warn)"
+            to={1}
+          />
+          <TierRow
+            label="scoped"
+            value={demo.before.scoped}
+            note="loaded while editing that subtree"
+            tone="var(--fg)"
+            to={demo.before.scoped / total}
+            muted
+          />
+          <TierRow
+            label="on-demand"
+            value={demo.before.onDemand}
+            note="free until the agent opens it"
+            tone="var(--accent)"
+            to={demo.before.onDemand / total}
+          />
+          <TierRow
+            label="config · MCP"
+            valueText="6 servers"
+            note="not context; tool schemas enter on connect"
+            tone="var(--faint)"
+            to={0}
+            muted
+          />
         </div>
       </div>
 

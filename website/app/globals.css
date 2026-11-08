@@ -377,6 +377,22 @@
   }
 }
 
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 2px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-scan="on"] .scan-chip {
+  animation: chip-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) var(--chip-delay, 0ms)
+    both;
+}
+
 @keyframes line-in {
   from {
     opacity: 0;
@@ -435,6 +451,7 @@
 
   .scan-beam,
   .pulse-soft,
+  .scan-chip,
   .line-in,
   .detail-in,
   .journey-underline {

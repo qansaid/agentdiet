@@ -205,13 +205,24 @@ export function CiPipeline() {
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="border-b border-line p-3.5 lg:border-r lg:border-b-0">
           <ol className="relative">
+            <span
+              aria-hidden="true"
+              className="absolute top-3 bottom-3 left-[7px] w-px bg-line"
+            >
+              <span
+                className="block w-px bg-accent/70 transition-[height] duration-500 ease-out"
+                style={{
+                  height: `${(completed / pipelineStages.length) * 100}%`,
+                }}
+              />
+            </span>
             {pipelineStages.map((stage, i) => {
               const state =
                 i < completed ? "done" : i === runningStage ? "running" : "pending";
               return (
                 <li key={stage.id} className="flex gap-3 py-2">
                   <span
-                    className={`mt-[1px] flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                    className={`relative z-10 mt-[1px] flex size-4 shrink-0 items-center justify-center rounded-full border bg-surface ${
                       state === "done"
                         ? "border-accent/40 bg-accent/10 text-accent"
                         : state === "running"

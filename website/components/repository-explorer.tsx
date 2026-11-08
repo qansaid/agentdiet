@@ -53,10 +53,11 @@ function fileIcon(row: TreeRow) {
   return FileText;
 }
 
-function TierChip({ tier }: { tier: Tier }) {
+function TierChip({ tier, delay = 0 }: { tier: Tier; delay?: number }) {
   return (
     <span
-      className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9.5px] leading-none ${chip[tier]}`}
+      className={`scan-chip shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9.5px] leading-none ${chip[tier]}`}
+      style={{ "--chip-delay": `${delay}ms` } as CSSProperties}
     >
       {tierMeta[tier].label}
     </span>
@@ -113,6 +114,7 @@ export function RepositoryExplorer() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     node.dataset.scan = "pending";
+    setScanState("scanning");
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -253,7 +255,14 @@ export function RepositoryExplorer() {
                       {row.meta}
                     </span>
                   ) : null}
-                  {row.tier ? <TierChip tier={row.tier} /> : null}
+                  {row.tier ? (
+                    <TierChip tier={row.tier} delay={i * 38 + 90} />
+                  ) : null}
+                  {row.duplicate ? (
+                    <span className="shrink-0 rounded border border-warn/40 bg-warn/[0.08] px-1 py-0.5 font-mono text-[9px] leading-none text-warn">
+                      dup
+                    </span>
+                  ) : null}
                   {typeof row.tokens === "number" ? (
                     <span className="w-10 shrink-0 text-right font-mono text-[10px] text-faint tabular-nums">
                       {fmt(row.tokens)}
@@ -284,7 +293,11 @@ export function RepositoryExplorer() {
                   aria-pressed={isSelected}
                   aria-label={`${row.path}, ${row.tier ?? "unclassified"}${typeof row.tokens === "number" ? `, ${fmt(row.tokens)} tokens` : ""}`}
                   className={`scan-row relative flex w-full items-center gap-2 px-3 py-[7px] text-left transition-colors hover:bg-elevated/70 ${
-                    isSelected ? "bg-elevated" : ""
+                    isSelected
+                      ? "bg-elevated"
+                      : row.duplicate
+                        ? "bg-warn/[0.045]"
+                        : ""
                   }`}
                   style={
                     {
@@ -365,6 +378,19 @@ export function RepositoryExplorer() {
                 </div>
               ) : null}
 
+              {selected.duplicate ? (
+                <div className="mt-3 rounded border border-warn/25 bg-warn/[0.05] px-2.5 py-2">
+                  <p className="font-mono text-[9.5px] tracking-wide text-warn uppercase">
+                    duplicate · {fmt(selected.duplicate)} tokens
+                  </p>
+                  <p className="mt-1 text-[11px] leading-[1.5] text-muted">
+                    Shared verbatim with{" "}
+                    {selected.id === "agents" ? "CLAUDE.md" : "AGENTS.md"}. Both
+                    copies are injected on every request.
+                  </p>
+                </div>
+              ) : null}
+
               {selected.tier === "always-on" && selected.tokens ? (
                 <div className="mt-3">
                   <div className="flex items-center justify-between font-mono text-[10px] text-faint">
@@ -402,6 +428,7 @@ export function RepositoryExplorer() {
         <span className="text-muted">scoped · subtree</span>
         <span className="text-accent">on-demand · free until opened</span>
         <span>config · tool surface</span>
+        <span className="text-warn">dup · 2,389 shared</span>
         <span className="ml-auto">simulated fixture</span>
       </div>
     </div>

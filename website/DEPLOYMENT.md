@@ -237,16 +237,32 @@ Headers, one Transform Rule (Modify response header) on
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` |
 
-Rate limiting, one rule on the same hostname, matching the per-IP bucket in
-`proxy.ts` (`MAX_PER_IP = 60` per 60 seconds):
+Rate limiting is **not** installed on this zone, and that is deliberate. The free
+plan allows one rule in the `http_ratelimit` phase, and it is already taken by
+`Leaked credential check` (block, 5 requests per 10 seconds, `cf.waf.credential_check.password_leaked`),
+which covers credential stuffing on every hostname in the zone. Trying to add a
+second rule answers:
 
-- Requests: `60` per `1 minute`, characteristic `IP address`, action `Block`
-  with a 60 second timeout.
+```
+50001 exceeded the maximum number of rules in the phase http_ratelimit: 2 out of 1
+```
 
-The free plan carries a single rate limiting rule, so the per-subnet bucket
-(`MAX_PER_SUBNET = 300`) and the global bucket (`GLOBAL_RPS = 120`, burst 240)
-have no direct equivalent. What replaces them is Cloudflare's automatic DDoS
-protection, which is what the global bucket existed to survive.
+What a page rule would look like if a slot ever frees up:
+
+- Expression: `http.host eq "agentdiet.qansa.web.id" and not starts_with(http.request.uri.path, "/_next/")`
+- Characteristics: `ip.src` **and** `cf.colo.id` (the free plan counts per
+  colocation; `ip.src` alone is rejected with error `20155`)
+- `60` requests per `60` seconds, action `Block`, mitigation timeout `60`
+
+The path exclusion is not optional: the home page loads 14 `/_next/` assets and
+the docs page loads 11, so an unscoped 60/minute limit blocks a reader after
+three page views. With the exclusion the limit matches `MAX_PER_IP` in
+`proxy.ts`, which used the same matcher.
+
+The per-subnet bucket (`MAX_PER_SUBNET = 300`) and the global bucket
+(`GLOBAL_RPS = 120`, burst 240) have no equivalent here. A static site on GitHub's
+CDN has no origin process to overload, so what actually replaces them is
+Cloudflare's automatic DDoS protection.
 
 ### DNS and certificate order
 

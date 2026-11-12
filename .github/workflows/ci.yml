@@ -34,8 +34,11 @@ jobs:
           set -u
           base=""
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # checkout already fetched full history (fetch-depth: 0), so
+            # origin/<base> exists. A --depth=1 fetch here would move the ref to
+            # a newer commit and hide its history, leaving the merge commit with
+            # no visible common ancestor and breaking the diff below.
             base="origin/${{ github.base_ref }}"
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}" || true
           elif [ -n "${{ github.event.before }}" ] && ! printf '%s' "${{ github.event.before }}" | grep -q '^0\+$'; then
             base="${{ github.event.before }}"
           fi
@@ -48,7 +51,13 @@ jobs:
             exit 0
           fi
 
-          git diff --name-only "$base"...HEAD > changed.txt
+          if ! git diff --name-only "$base"...HEAD > changed.txt 2>/dev/null; then
+            # Never let a diff problem turn into a failed `changes` job: that
+            # would skip the required Go checks instead of running them.
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "diff failed, running Go steps"
+            exit 0
+          fi
           echo "changed files:"; sed 's/^/  /' changed.txt
           if grep -qE '(^|/)(.*\.go|go\.mod|go\.sum|Makefile|action\.ya?ml|\.goreleaser\.ya?ml)$|^scripts/|^\.github/workflows/' changed.txt; then
             echo "go=true" >> "$GITHUB_OUTPUT"

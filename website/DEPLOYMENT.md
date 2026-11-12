@@ -195,6 +195,82 @@ Run it under systemd, pm2 or any process supervisor. The process is stateless.
 
 ---
 
+## GitHub Pages (hybrid: Pages origin, Cloudflare in front)
+
+Pages serves the static export; Cloudflare keeps the protections the container
+had. The export is enabled by `PAGES_EXPORT=1`:
+
+```bash
+cd website
+PAGES_EXPORT=1 NEXT_PUBLIC_SITE_URL="https://agentdiet.qansa.web.id" npm run build
+# emits out/, including out/docs/index.html and out/404.html
+```
+
+`.github/workflows/pages.yml` runs that build, checks `out/` contains
+`index.html`, `docs/index.html`, `404.html`, `sitemap.xml` and `robots.txt`, and
+deploys it as the Pages artifact. There is no `CNAME` file: with an Actions
+deploy the custom domain lives in the repository's Pages settings.
+
+### What Pages does not do
+
+- **No custom response headers.** Everything in `next.config.ts` under
+  `headers()` is ignored by the export: CSP, HSTS, X-Frame-Options,
+  Referrer-Policy, Permissions-Policy and the two Cache-Control rules.
+- **No middleware.** `proxy.ts` still sits in the tree for the container origin,
+  and the export build even lists `Proxy (Middleware)`, but nothing runs it. The
+  three token buckets therefore do not exist on Pages.
+- **Its own caching.** The `s-maxage`/`stale-while-revalidate` tuning is gone.
+
+Both gaps are filled at the edge, not in the app.
+
+### Cloudflare rules that replace them
+
+Headers, one Transform Rule (Modify response header) on
+`agentdiet.qansa.web.id`, static, same values the app sets:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'` |
+| `Strict-Transport-Security` | `max-age=15552000; includeSubDomains` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `SAMEORIGIN` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` |
+
+Rate limiting, one rule on the same hostname, matching the per-IP bucket in
+`proxy.ts` (`MAX_PER_IP = 60` per 60 seconds):
+
+- Requests: `60` per `1 minute`, characteristic `IP address`, action `Block`
+  with a 60 second timeout.
+
+The free plan carries a single rate limiting rule, so the per-subnet bucket
+(`MAX_PER_SUBNET = 300`) and the global bucket (`GLOBAL_RPS = 120`, burst 240)
+have no direct equivalent. What replaces them is Cloudflare's automatic DDoS
+protection, which is what the global bucket existed to survive.
+
+### DNS and certificate order
+
+1. `CNAME agentdiet.qansa.web.id -> qansaid.github.io`, **proxied off** (DNS only).
+   The target is the account that owns the repository, which is the organisation
+   `qansaid`, not the account running the workflow.
+2. Wait for Pages to issue the certificate, then enable "Enforce HTTPS" in the
+   repository's Pages settings.
+3. Only then switch the record to proxied, and add the Transform Rule and the
+   rate limiting rule. A proxied record during issuance leaves the domain on
+   "certificate not yet created".
+
+### Verification
+
+```bash
+dig +short agentdiet.qansa.web.id CNAME      # qansaid.github.io.
+curl -sI https://agentdiet.qansa.web.id/ | egrep -i 'HTTP/|content-security|strict-transport|x-frame|permissions-policy|referrer'
+curl -s -o /dev/null -w '%{http_code}\n' https://agentdiet.qansa.web.id/this-path-does-not-exist   # 404
+curl -s https://agentdiet.qansa.web.id/sitemap.xml | head -3
+```
+
+A config file that lists a header proves nothing here: the headers come from
+Cloudflare, so only the served response shows whether they arrived.
+
 ## Post-deploy verification
 
 ```bash

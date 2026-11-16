@@ -1,6 +1,6 @@
 name: agentdiet
 description: Measure the context your AI coding agent loads on every request, and fail when it grows past a budget.
-author: indraoverflow
+author: prascli
 
 branding:
   icon: activity
